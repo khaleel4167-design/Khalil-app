@@ -140,6 +140,26 @@ fun LockScreen() {
             }
         }
 
+        Section("الشكل") {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FilterChip(
+                    selected = style.layout == 0,
+                    onClick = { update(style.copy(layout = 0, posY = if (style.posY < 0.4f) 0.58f else style.posY)) },
+                    label = { Text("كامل · وسط الشاشة") }, modifier = Modifier.weight(1f),
+                )
+                FilterChip(
+                    selected = style.layout == 1,
+                    onClick = { update(style.copy(layout = 1, posY = if (style.posY > 0.45f) 0.24f else style.posY)) },
+                    label = { Text("بسيط · سطر فوق") }, modifier = Modifier.weight(1f),
+                )
+            }
+            if (style.layout == 1) {
+                Text("التاريخ يطلع في بطاقة صغيرة تحت الساعة والخلفية تبان كلها. " +
+                    "اختاري «صورتي» تحت لو تبين صورتك المفضلة تكون الخلفية.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
         Section("الخلفية") {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 WallpaperRenderer.THEMES.forEachIndexed { i, t ->
@@ -195,7 +215,7 @@ fun LockScreen() {
                 Slider(
                     value = style.posY, onValueChange = { style = style.copy(posY = it) },
                     onValueChangeFinished = { LockPrefs.save(ctx, style) },
-                    valueRange = 0.35f..0.8f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    valueRange = 0.12f..0.85f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 )
                 Text("تحت", style = MaterialTheme.typography.bodySmall)
             }

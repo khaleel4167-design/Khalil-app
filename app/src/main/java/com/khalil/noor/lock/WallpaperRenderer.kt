@@ -104,52 +104,8 @@ object WallpaperRenderer {
         if (t.pattern) drawPattern(cv, w, h, t.text)
 
         // ---------- نصوص التاريخ ----------
-        val cx = w / 2f
-        val u = w / 100f
-        val lines = mutableListOf<Line>()
-        lines += Line(day.dayName, 6.6f * u, t.accent, 1.55f)
-        lines += Line(HijriDate.digits(day.hijriDay, s.arabicDigits), 30f * u, t.text, 1.05f)
-        lines += Line(day.hijriMonth, 10f * u, t.text, 1.45f)
-        lines += Line(HijriDate.digits(day.hijriYear, s.arabicDigits) + " هـ", 5.6f * u, withAlpha(t.text, 0xD0), 1.6f)
-        lines += Line("—ORN—", 4f * u, t.accent, 2.2f)
-        if (s.showGreg) {
-            val g = "${HijriDate.digits(day.gregDay, s.arabicDigits)} ${day.gregMonth} ${HijriDate.digits(day.gregYear, s.arabicDigits)} م"
-            lines += Line(g, 5f * u, withAlpha(t.text, 0xE0), 1.6f)
-        }
-        if (s.extraText.isNotBlank()) {
-            lines += Line(s.extraText.trim(), 4.6f * u, withAlpha(t.accent, 0xF0), 1.8f)
-        }
-
-        val total = lines.sumOf { (it.size * it.lead).toDouble() }.toFloat()
-        var y = h * s.posY - total / 2f
-
-        // بطاقة شفافة خلف النص لو كانت صورة
-        if (photo != null) {
-            val card = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x40000000 }
-            val r = RectF(w * 0.08f, y - 2f * u, w * 0.92f, y + total + 2f * u)
-            cv.drawRoundRect(r, 6f * u, 6f * u, card)
-        }
-
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = face
-            textAlign = Paint.Align.CENTER
-        }
-        for (ln in lines) {
-            val slot = ln.size * ln.lead
-            if (ln.text == "—ORN—") {
-                drawOrnament(cv, cx, y + slot / 2f, w * 0.46f, ln.size, ln.color)
-            } else {
-                p.textSize = ln.size
-                p.color = ln.color
-                if (photo != null) p.setShadowLayer(1.2f * u, 0f, 0.3f * u, 0x88000000.toInt())
-                else p.clearShadowLayer()
-                fitWidth(p, ln.text, w * 0.86f)
-                val fm = p.fontMetrics
-                val base = y + slot / 2f - (fm.ascent + fm.descent) / 2f
-                cv.drawText(ln.text, cx, base, p)
-            }
-            y += slot
-        }
+        if (s.layout == 1) drawCompact(cv, c, s, t, day, face, w, h, photo != null)
+        else drawFull(cv, s, t, day, face, w, h, photo != null)
         return bmp
     }
 
@@ -171,6 +127,115 @@ object WallpaperRenderer {
         } finally {
             bmp.recycle()
         }
+    }
+
+    private fun drawFull(cv: Canvas, s: LockStyle, t: LockTheme, day: DayInfo, face: Typeface,
+                         w: Int, h: Int, hasPhoto: Boolean) {
+        val cx = w / 2f
+        val u = w / 100f
+        val lines = mutableListOf<Line>()
+        lines += Line(day.dayName, 6.6f * u, t.accent, 1.55f)
+        lines += Line(HijriDate.digits(day.hijriDay, s.arabicDigits), 30f * u, t.text, 1.05f)
+        lines += Line(day.hijriMonth, 10f * u, t.text, 1.45f)
+        lines += Line(HijriDate.digits(day.hijriYear, s.arabicDigits) + " هـ", 5.6f * u, withAlpha(t.text, 0xD0), 1.6f)
+        lines += Line("—ORN—", 4f * u, t.accent, 2.2f)
+        if (s.showGreg) {
+            val g = "${HijriDate.digits(day.gregDay, s.arabicDigits)} ${day.gregMonth} ${HijriDate.digits(day.gregYear, s.arabicDigits)} م"
+            lines += Line(g, 5f * u, withAlpha(t.text, 0xE0), 1.6f)
+        }
+        if (s.extraText.isNotBlank()) {
+            lines += Line(s.extraText.trim(), 4.6f * u, withAlpha(t.accent, 0xF0), 1.8f)
+        }
+
+        val total = lines.sumOf { (it.size * it.lead).toDouble() }.toFloat()
+        var y = h * s.posY - total / 2f
+
+        // بطاقة شفافة خلف النص لو كانت صورة
+        if (hasPhoto) {
+            val card = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x40000000 }
+            val r = RectF(w * 0.08f, y - 2f * u, w * 0.92f, y + total + 2f * u)
+            cv.drawRoundRect(r, 6f * u, 6f * u, card)
+        }
+
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = face
+            textAlign = Paint.Align.CENTER
+        }
+        for (ln in lines) {
+            val slot = ln.size * ln.lead
+            if (ln.text == "—ORN—") {
+                drawOrnament(cv, cx, y + slot / 2f, w * 0.46f, ln.size, ln.color)
+            } else {
+                p.textSize = ln.size
+                p.color = ln.color
+                if (hasPhoto) p.setShadowLayer(1.2f * u, 0f, 0.3f * u, 0x88000000.toInt())
+                else p.clearShadowLayer()
+                fitWidth(p, ln.text, w * 0.86f)
+                val fm = p.fontMetrics
+                val base = y + slot / 2f - (fm.ascent + fm.descent) / 2f
+                cv.drawText(ln.text, cx, base, p)
+            }
+            y += slot
+        }
+    }
+
+    /** الشكل البسيط: بطاقة صغيرة شفافة تحت الساعة، والخلفية تبان كلها */
+    private fun drawCompact(cv: Canvas, c: Context, s: LockStyle, t: LockTheme, day: DayInfo, face: Typeface,
+                            w: Int, h: Int, hasPhoto: Boolean) {
+        val u = w / 100f
+        val d = { n: Int -> HijriDate.digits(n, s.arabicDigits) }
+        val line1 = "${day.dayName} ${d(day.hijriDay)} ${day.hijriMonth}"
+        val line2 = if (s.showGreg) "${d(day.hijriYear)} هـ  •  ${d(day.gregDay)} ${day.gregMonth} ${d(day.gregYear)} م"
+        else "${d(day.hijriYear)} هـ"
+        val extra = s.extraText.trim()
+
+        val p1 = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.CENTER; textSize = 6.2f * u }
+        val p2 = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.CENTER; textSize = 4.1f * u }
+        val p3 = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.CENTER; textSize = 3.7f * u }
+        fitWidth(p1, line1, w * 0.78f); fitWidth(p2, line2, w * 0.78f); if (extra.isNotEmpty()) fitWidth(p3, extra, w * 0.78f)
+
+        val h1 = p1.textSize * 1.5f
+        val h2 = p2.textSize * 1.55f
+        val h3 = if (extra.isNotEmpty()) p3.textSize * 1.6f else 0f
+        val padV = 2.6f * u
+        val total = h1 + h2 + h3 + padV * 2
+        val textW = maxOf(p1.measureText(line1), p2.measureText(line2), if (extra.isNotEmpty()) p3.measureText(extra) else 0f)
+        val cardW = minOf(w * 0.9f, textW + 14f * u)
+        val cx = w / 2f
+        val top = h * s.posY - total / 2f
+
+        // بطاقة زجاجية
+        val light = !hasPhoto && luminance(t.mid) > 0.6f
+        val card = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (light) 0x55FFFFFF else 0x3A000000 }
+        val rect = RectF(cx - cardW / 2f, top, cx + cardW / 2f, top + total)
+        cv.drawRoundRect(rect, 5f * u, 5f * u, card)
+        val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = 0.25f * u; color = withAlpha(t.accent, 0x70)
+        }
+        cv.drawRoundRect(rect, 5f * u, 5f * u, edge)
+
+        // نجمتين صغار على الأطراف
+        val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = t.accent }
+        drawStar8(cv, rect.left + 4f * u, top + padV + h1 / 2f, 1.3f * u, sp)
+        drawStar8(cv, rect.right - 4f * u, top + padV + h1 / 2f, 1.3f * u, sp)
+
+        val textColor = t.text
+        var y = top + padV
+        fun put(p: Paint, text: String, slot: Float, color: Int) {
+            p.color = color
+            if (hasPhoto) p.setShadowLayer(0.8f * u, 0f, 0.2f * u, 0x88000000.toInt())
+            val fm = p.fontMetrics
+            cv.drawText(text, cx, y + slot / 2f - (fm.ascent + fm.descent) / 2f, p)
+            y += slot
+        }
+        put(p1, line1, h1, textColor)
+        put(p2, line2, h2, withAlpha(textColor, 0xD8))
+        if (extra.isNotEmpty()) put(p3, extra, h3, t.accent)
+    }
+
+    private fun luminance(c: Int): Float {
+        val r = (c shr 16 and 0xFF) / 255f; val g = (c shr 8 and 0xFF) / 255f; val b = (c and 0xFF) / 255f
+        return 0.299f * r + 0.587f * g + 0.114f * b
     }
 
     // ---------------------------------------------------------------
