@@ -280,7 +280,7 @@ object Downloader {
             put(MediaStore.MediaColumns.DISPLAY_NAME, f.name)
             put(MediaStore.MediaColumns.MIME_TYPE, mime(f.name, audio))
             put(MediaStore.MediaColumns.RELATIVE_PATH,
-                (if (audio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES) + "/Noor")
+                (if (audio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES) + "/Eman")
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = cr.insert(collection, values) ?: return null

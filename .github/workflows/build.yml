@@ -48,16 +48,16 @@ jobs:
           gradle assembleRelease --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk Noor.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Eman.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Noor-apk
-          path: Noor.apk
+          name: Eman.apk
+          path: Eman.apk
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="v1.0.${{ github.run_number }}"
-          gh release create "$TAG" Noor.apk --title "نور $TAG" --notes "نسخة جديدة من تطبيق نور" --latest
+          gh release create "$TAG" Eman.apk --title "إيمان $TAG" --notes "نسخة جديدة من تطبيق إيمان" --latest

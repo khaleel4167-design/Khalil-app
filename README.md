@@ -1,10 +1,10 @@
-# نور
+# إيمان
 
 تطبيق أندرويد شخصي:
 - **التحميل:** فيديو أو صوت من يوتيوب وتيك توك بجودات مختلفة (محرك yt-dlp).
 - **شاشة القفل:** خلفية تتحدّث كل يوم بالتاريخ الهجري (أم القرى) والميلادي بالعربي.
 
 ## التنزيل
-آخر نسخة: https://github.com/khaleel4167-design/Khalil-app/releases/latest/download/Noor.apk
+آخر نسخة: https://github.com/khaleel4167-design/Khalil-app/releases/latest/download/Eman.apk
 
 كل تعديل يُرفع على main، GitHub يبنيه تلقائياً وينشر نسخة جديدة في Releases.

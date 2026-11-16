@@ -75,7 +75,7 @@ fun DownloadScreen() {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Header("تحميل من يوتيوب وتيك توك", "الصقي الرابط، أو شاركي الفيديو من التطبيق واختاري «نور»")
+        Header("تحميل من يوتيوب وتيك توك", "الصقي الرابط، أو شاركي الفيديو من التطبيق واختاري «إيمان»")
 
         OutlinedTextField(
             value = url,
@@ -149,8 +149,8 @@ private fun HintCard() {
     SoftCard {
         Text("طريقة سريعة", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         Text(
-            "في يوتيوب أو تيك توك اضغطي «مشاركة» ثم اختاري «نور»، والتطبيق يجيب الفيديو على طول.\n" +
-                "الفيديو ينحفظ في الاستوديو (مجلد Movies/Noor)، والصوت في الموسيقى (Music/Noor).",
+            "في يوتيوب أو تيك توك اضغطي «مشاركة» ثم اختاري «إيمان»، والتطبيق يجيب الفيديو على طول.\n" +
+                "الفيديو ينحفظ في الاستوديو (مجلد Movies/Eman)، والصوت في الموسيقى (Music/Eman).",
             style = MaterialTheme.typography.bodyMedium,
         )
     }
@@ -273,7 +273,7 @@ private fun DoneCard(s: DlState.Done) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("تم التحميل ✓", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(s.info.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(if (s.audio) "محفوظ في الموسيقى ← Music/Noor" else "محفوظ في الاستوديو ← Movies/Noor",
+            Text(if (s.audio) "محفوظ في الموسيقى ← Music/Eman" else "محفوظ في الاستوديو ← Movies/Eman",
                 style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(onClick = {
