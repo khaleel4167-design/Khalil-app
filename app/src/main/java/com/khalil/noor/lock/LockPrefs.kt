@@ -3,56 +3,58 @@ package com.khalil.noor.lock
 import android.content.Context
 import java.io.File
 
-/** إعدادات شكل شاشة القفل */
+/** إعدادات شاشة القفل: خلفية (صورتها أو لون) + بطاقة التاريخ فوقها */
 data class LockStyle(
-    val theme: Int = 0,
-    /** 0 = كامل في وسط الشاشة، 1 = بسيط: سطر صغير فوق */
-    val layout: Int = 0,
+    /** لون البطاقة: فهرس في WallpaperRenderer.THEMES (آخر واحد = زجاجي) */
+    val theme: Int = 4,
+    /** true = صورتها خلفية، false = خلفية ملوّنة بلون البطاقة */
+    val usePhoto: Boolean = true,
+    /** 0 = بطاقة صغيرة، 1 = بطاقة كبيرة */
+    val cardSize: Int = 1,
+    /** 0 = هجري وميلادي، 1 = هجري فقط، 2 = ميلادي فقط */
+    val dates: Int = 0,
     val font: Int = 0,
-    val posY: Float = 0.58f,
+    val posY: Float = 0.27f,
     val arabicDigits: Boolean = true,
-    val showGreg: Boolean = true,
     val extraText: String = "",
     val hijriAdjust: Int = 0,
     val autoDaily: Boolean = true,
     val alsoHome: Boolean = false,
-    /** 0 = تغيير خلفية شاشة القفل، 1 = بطاقة صغيرة في الإشعارات والخلفية تبقى زي ما هي */
-    val mode: Int = 0,
 )
 
 object LockPrefs {
-    private const val NAME = "lock"
+    private const val NAME = "lock2"
 
     fun load(c: Context): LockStyle {
         val p = c.getSharedPreferences(NAME, Context.MODE_PRIVATE)
         return LockStyle(
-            theme = p.getInt("theme", 0),
-            layout = p.getInt("layout", 0),
+            theme = p.getInt("theme", 4),
+            usePhoto = p.getBoolean("usePhoto", true),
+            cardSize = p.getInt("cardSize", 1),
+            dates = p.getInt("dates", 0),
             font = p.getInt("font", 0),
-            posY = p.getFloat("posY", 0.58f),
+            posY = p.getFloat("posY", 0.27f),
             arabicDigits = p.getBoolean("arabicDigits", true),
-            showGreg = p.getBoolean("showGreg", true),
             extraText = p.getString("extraText", "") ?: "",
             hijriAdjust = p.getInt("hijriAdjust", 0),
             autoDaily = p.getBoolean("autoDaily", true),
             alsoHome = p.getBoolean("alsoHome", false),
-            mode = p.getInt("mode", 0),
         )
     }
 
     fun save(c: Context, s: LockStyle) {
         c.getSharedPreferences(NAME, Context.MODE_PRIVATE).edit()
             .putInt("theme", s.theme)
-            .putInt("layout", s.layout)
+            .putBoolean("usePhoto", s.usePhoto)
+            .putInt("cardSize", s.cardSize)
+            .putInt("dates", s.dates)
             .putInt("font", s.font)
             .putFloat("posY", s.posY)
             .putBoolean("arabicDigits", s.arabicDigits)
-            .putBoolean("showGreg", s.showGreg)
             .putString("extraText", s.extraText)
             .putInt("hijriAdjust", s.hijriAdjust)
             .putBoolean("autoDaily", s.autoDaily)
             .putBoolean("alsoHome", s.alsoHome)
-            .putInt("mode", s.mode)
             .apply()
     }
 
@@ -63,6 +65,6 @@ object LockPrefs {
         c.getSharedPreferences(NAME, Context.MODE_PRIVATE).edit().putString("lastApplied", key).apply()
     }
 
-    /** الصورة اللي اختارتها من الاستوديو تنحفظ نسخة منها داخل التطبيق */
+    /** نسخة من خلفيتها الأصلية (من الاستوديو أو من خلفية الجوال الحالية) */
     fun photoFile(c: Context): File = File(c.filesDir, "bg_photo.jpg")
 }

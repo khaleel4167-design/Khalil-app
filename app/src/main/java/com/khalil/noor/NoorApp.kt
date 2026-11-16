@@ -9,6 +9,11 @@ class NoorApp : Application() {
     override fun onCreate() {
         super.onCreate()
         DownloadService.ensureChannels(this)
+        // تنظيف بطاقة الإشعار من النسخة السابقة
+        getSystemService(android.app.NotificationManager::class.java).apply {
+            cancel(21)
+            deleteNotificationChannel("hijri_date")
+        }
         Downloader.init(this)
         DailyScheduler.sync(this)
     }
