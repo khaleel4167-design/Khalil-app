@@ -38,10 +38,26 @@ object DailyScheduler {
         }
     }
 
-    /** يركّب خلفية اليوم لو ما انركّبت */
+    /** يطبّق حسب الطريقة المختارة: خلفية أو بطاقة إشعار */
+    fun applyNow(c: Context): Boolean {
+        val s = LockPrefs.load(c)
+        return if (s.mode == 1) {
+            DateNotifier.post(c)
+        } else {
+            DateNotifier.cancel(c)
+            WallpaperRenderer.apply(c)
+        }
+    }
+
+    /** يحدّث تاريخ اليوم لو ما تحدّث */
     fun ensureToday(c: Context) {
         val s = LockPrefs.load(c)
         if (!s.autoDaily || LockPrefs.lastApplied(c) == null) return
+        if (s.mode == 1) {
+            // البطاقة نعيد إرسالها دايماً: تنمسح بعد إعادة التشغيل أو لو انسحبت
+            DateNotifier.post(c)
+            return
+        }
         val key = HijriDate.today(s.hijriAdjust).key
         if (LockPrefs.lastApplied(c) != key) WallpaperRenderer.apply(c)
     }

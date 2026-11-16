@@ -16,6 +16,8 @@ data class LockStyle(
     val hijriAdjust: Int = 0,
     val autoDaily: Boolean = true,
     val alsoHome: Boolean = false,
+    /** 0 = تغيير خلفية شاشة القفل، 1 = بطاقة صغيرة في الإشعارات والخلفية تبقى زي ما هي */
+    val mode: Int = 0,
 )
 
 object LockPrefs {
@@ -34,6 +36,7 @@ object LockPrefs {
             hijriAdjust = p.getInt("hijriAdjust", 0),
             autoDaily = p.getBoolean("autoDaily", true),
             alsoHome = p.getBoolean("alsoHome", false),
+            mode = p.getInt("mode", 0),
         )
     }
 
@@ -49,6 +52,7 @@ object LockPrefs {
             .putInt("hijriAdjust", s.hijriAdjust)
             .putBoolean("autoDaily", s.autoDaily)
             .putBoolean("alsoHome", s.alsoHome)
+            .putInt("mode", s.mode)
             .apply()
     }
 

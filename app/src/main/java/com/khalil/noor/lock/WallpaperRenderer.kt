@@ -129,6 +129,106 @@ object WallpaperRenderer {
         }
     }
 
+    /**
+     * بطاقة التاريخ اللي تطلع في الإشعارات على شاشة القفل،
+     * بنفس ألوان وخط الخلفية المختارة. [compact] = سطر واحد للإشعار المصغّر
+     */
+    fun renderCard(c: Context, s: LockStyle, day: DayInfo, compact: Boolean): Bitmap {
+        val w = 1080
+        val h = if (compact) 170 else 340
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val cv = Canvas(bmp)
+        val base = THEMES.getOrElse(s.theme) { THEMES[0] }
+        val t = if (base.photo) THEMES[0] else base
+        val face: Typeface = ResourcesCompat.getFont(c, FONTS.getOrElse(s.font) { FONTS[0] }.second)
+            ?: Typeface.DEFAULT_BOLD
+        val r = h * if (compact) 0.3f else 0.16f
+        val rect = RectF(0f, 0f, w.toFloat(), h.toFloat())
+
+        // خلفية البطاقة بتدرّج ألوان الثيم
+        val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(w.toFloat(), 0f, 0f, h.toFloat(),
+                intArrayOf(t.top, t.mid, t.bottom), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+        }
+        cv.drawRoundRect(rect, r, r, bg)
+        cv.save()
+        val clip = Path().apply { addRoundRect(rect, r, r, Path.Direction.CW) }
+        cv.clipPath(clip)
+        if (t.stars) drawStars(cv, w, h * 3, day.key.hashCode(), t.accent)
+        if (t.pattern) drawPattern(cv, w, h, t.text)
+        cv.restore()
+
+        val d = { n: Int -> HijriDate.digits(n, s.arabicDigits) }
+        val pad = h * if (compact) 0.22f else 0.14f
+        val right = w - pad
+
+        if (compact) {
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.RIGHT; textSize = h * 0.42f; color = t.text }
+            val line = "${day.dayName} ${d(day.hijriDay)} ${day.hijriMonth} ${d(day.hijriYear)} هـ"
+            fitWidth(p, line, w - pad * 2 - h * 0.5f)
+            val fm = p.fontMetrics
+            cv.drawText(line, right, h / 2f - (fm.ascent + fm.descent) / 2f, p)
+            val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = t.accent }
+            drawStar8(cv, pad + h * 0.18f, h / 2f, h * 0.16f, sp)
+            return bmp
+        }
+
+        // الرقم الكبير على اليمين
+        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.CENTER; textSize = h * 0.62f; color = t.accent }
+        val numText = d(day.hijriDay)
+        val numW = maxOf(num.measureText(numText), h * 0.45f)
+        val numCx = right - numW / 2f
+        val nfm = num.fontMetrics
+        cv.drawText(numText, numCx, h / 2f - (nfm.ascent + nfm.descent) / 2f, num)
+
+        // خط فاصل
+        val sep = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = t.accent; alpha = 0x80; strokeWidth = 3f }
+        val sx = right - numW - pad * 0.7f
+        cv.drawLine(sx, h * 0.2f, sx, h * 0.8f, sep)
+
+        val textRight = sx - pad * 0.7f
+        val maxW = textRight - pad - h * 0.3f
+        val p1 = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.RIGHT; textSize = h * 0.2f; color = t.text }
+        val p2 = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face; textAlign = Paint.Align.RIGHT; textSize = h * 0.13f; color = withAlpha(t.text, 0xC8) }
+        val l1 = "${day.dayName}، ${day.hijriMonth}"
+        val l2 = if (s.showGreg) "${d(day.hijriYear)} هـ  •  ${d(day.gregDay)} ${day.gregMonth} ${d(day.gregYear)} م" else "${d(day.hijriYear)} هـ"
+        val l3 = s.extraText.trim()
+        fitWidth(p1, l1, maxW); fitWidth(p2, l2, maxW)
+        val p3 = Paint(p2).apply { color = t.accent }
+        if (l3.isNotEmpty()) fitWidth(p3, l3, maxW)
+        val lines = mutableListOf(p1 to l1, p2 to l2)
+        if (l3.isNotEmpty()) lines += p3 to l3
+        val slots = lines.map { it.first.textSize * 1.45f }
+        var y = h / 2f - slots.sum() / 2f
+        lines.forEachIndexed { i, (p, text) ->
+            val fm = p.fontMetrics
+            cv.drawText(text, textRight, y + slots[i] / 2f - (fm.ascent + fm.descent) / 2f, p)
+            y += slots[i]
+        }
+        // نجمة صغيرة على اليسار
+        val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = t.accent; alpha = 0xD0 }
+        drawStar8(cv, pad + h * 0.08f, h / 2f, h * 0.07f, sp)
+        return bmp
+    }
+
+    /** أيقونة شريط الحالة: رقم اليوم الهجري */
+    fun renderDayIcon(c: Context, day: DayInfo, arabic: Boolean): Bitmap {
+        val size = 96
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val cv = Canvas(bmp)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = ResourcesCompat.getFont(c, R.font.tajawal_bold) ?: Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+            color = Color.WHITE
+            textSize = size * 0.78f
+        }
+        val text = HijriDate.digits(day.hijriDay, arabic)
+        fitWidth(p, text, size * 0.95f)
+        val fm = p.fontMetrics
+        cv.drawText(text, size / 2f, size / 2f - (fm.ascent + fm.descent) / 2f, p)
+        return bmp
+    }
+
     private fun drawFull(cv: Canvas, s: LockStyle, t: LockTheme, day: DayInfo, face: Typeface,
                          w: Int, h: Int, hasPhoto: Boolean) {
         val cx = w / 2f

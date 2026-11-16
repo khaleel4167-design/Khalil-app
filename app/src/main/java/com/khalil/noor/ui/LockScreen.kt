@@ -78,6 +78,8 @@ fun LockScreen() {
     var style by remember { mutableStateOf(LockPrefs.load(ctx)) }
     var photoVer by remember { mutableIntStateOf(0) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
+    var cardBig by remember { mutableStateOf<Bitmap?>(null) }
+    var cardSmall by remember { mutableStateOf<Bitmap?>(null) }
     var busy by remember { mutableStateOf(false) }
     val (sw, sh) = remember { WallpaperRenderer.screenSize(ctx) }
 
@@ -93,6 +95,11 @@ fun LockScreen() {
             WallpaperRenderer.render(ctx, style, HijriDate.today(style.hijriAdjust), w, h)
         }
         preview = bmp
+        if (style.mode == 1) {
+            val day = HijriDate.today(style.hijriAdjust)
+            cardBig = withContext(Dispatchers.Default) { WallpaperRenderer.renderCard(ctx, style, day, compact = false) }
+            cardSmall = withContext(Dispatchers.Default) { WallpaperRenderer.renderCard(ctx, style, day, compact = true) }
+        }
     }
 
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -121,26 +128,70 @@ fun LockScreen() {
                 "${HijriDate.digits(today.hijriYear, true)} هـ",
         )
 
-        // المعاينة
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val shape = RoundedCornerShape(28.dp)
-            Box(
-                Modifier.fillMaxWidth(0.62f).aspectRatio(sw.toFloat() / sh)
-                    .shadow(10.dp, shape).clip(shape)
-                    .border(BorderStroke(5.dp, Color(0xFF111111)), shape)
-                    .background(Color(0xFF111111)),
-                contentAlignment = Alignment.Center,
-            ) {
-                val b = preview
-                if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                else CircularProgressIndicator()
-                // ساعة شاشة القفل التقريبية عشان تشوفين المكان
-                Text("٩:٤١", color = Color.White.copy(alpha = 0.55f), fontSize = 34.sp,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp))
+        Section("طريقة العرض") {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FilterChip(selected = style.mode == 0, onClick = { update(style.copy(mode = 0)) },
+                    label = { Text("تغيير الخلفية") }, modifier = Modifier.weight(1f))
+                FilterChip(selected = style.mode == 1, onClick = { update(style.copy(mode = 1)) },
+                    label = { Text("بطاقة فوق خلفيتك") }, modifier = Modifier.weight(1f))
             }
+            Text(
+                if (style.mode == 0) "التطبيق يصمم خلفية شاشة القفل كاملة وفيها التاريخ."
+                else "خلفيتك تبقى زي ما هي، والتاريخ يطلع كبطاقة صغيرة بنفس الألوان والخط في إشعارات شاشة القفل، " +
+                    "ورقم اليوم الهجري يطلع أيقونة فوق في شريط الحالة.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
-        Section("الشكل") {
+        if (style.mode == 1) {
+            // معاينة البطاقة
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF3A4A5E), Color(0xFF6E5E72))))
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("٩:٤١", color = Color.White.copy(alpha = 0.8f), fontSize = 40.sp)
+                Text("هذي خلفيتك الحالية", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                listOf(cardBig, cardSmall).forEach { bm ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                            .background(Color.White.copy(alpha = 0.92f)).padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("إيمان", fontSize = 11.sp, color = Color(0xFF555555))
+                        if (bm != null) Image(bm.asImageBitmap(), null,
+                            Modifier.fillMaxWidth().aspectRatio(bm.width.toFloat() / bm.height))
+                    }
+                }
+                Text("البطاقة الكبيرة لما تفتح الإشعار، والصغيرة لما يكون مطوي",
+                    color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+            }
+        } else {
+            // المعاينة
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val shape = RoundedCornerShape(28.dp)
+                Box(
+                    Modifier.fillMaxWidth(0.62f).aspectRatio(sw.toFloat() / sh)
+                        .shadow(10.dp, shape).clip(shape)
+                        .border(BorderStroke(5.dp, Color(0xFF111111)), shape)
+                        .background(Color(0xFF111111)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val b = preview
+                    if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    else CircularProgressIndicator()
+                    // ساعة شاشة القفل التقريبية عشان تشوفين المكان
+                    Text("٩:٤١", color = Color.White.copy(alpha = 0.55f), fontSize = 34.sp,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp))
+                }
+            }
+
+        }
+
+        if (style.mode == 0) Section("الشكل") {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
                     selected = style.layout == 0,
@@ -209,7 +260,7 @@ fun LockScreen() {
             }
         }
 
-        Section("مكان التاريخ") {
+        if (style.mode == 0) Section("مكان التاريخ") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("فوق", style = MaterialTheme.typography.bodySmall)
                 Slider(
@@ -233,7 +284,7 @@ fun LockScreen() {
         Section("خيارات") {
             Toggle("أرقام عربية (٢٥ بدل 25)", style.arabicDigits) { update(style.copy(arabicDigits = it)) }
             Toggle("إظهار التاريخ الميلادي", style.showGreg) { update(style.copy(showGreg = it)) }
-            Toggle("نفس الخلفية للشاشة الرئيسية", style.alsoHome) { update(style.copy(alsoHome = it)) }
+            if (style.mode == 0) Toggle("نفس الخلفية للشاشة الرئيسية", style.alsoHome) { update(style.copy(alsoHome = it)) }
             Toggle("تحديث تلقائي كل يوم بعد منتصف الليل", style.autoDaily) {
                 update(style.copy(autoDaily = it)); DailyScheduler.sync(ctx)
             }
@@ -252,12 +303,23 @@ fun LockScreen() {
             onClick = {
                 busy = true
                 scope.launch {
-                    val ok = withContext(Dispatchers.IO) { WallpaperRenderer.apply(ctx) }
+                    val mode = style.mode
+                    val ok = withContext(Dispatchers.IO) { DailyScheduler.applyNow(ctx) }
                     DailyScheduler.sync(ctx)
                     busy = false
-                    Toast.makeText(ctx,
-                        if (ok) "تم ✓ اقفلي الشاشة وشوفي" else "ما قدرت أغيّر الخلفية، جرّبي مرة ثانية",
-                        Toast.LENGTH_LONG).show()
+                    if (!ok && mode == 1) {
+                        Toast.makeText(ctx, "فعّلي إشعارات التطبيق عشان تطلع البطاقة", Toast.LENGTH_LONG).show()
+                        runCatching {
+                            ctx.startActivity(
+                                android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                            )
+                        }
+                    } else {
+                        Toast.makeText(ctx,
+                            if (ok) "تم ✓ اقفلي الشاشة وشوفي" else "ما قدرت أطبّقها، جرّبي مرة ثانية",
+                            Toast.LENGTH_LONG).show()
+                    }
                 }
             },
             enabled = !busy,
@@ -265,7 +327,8 @@ fun LockScreen() {
             shape = RoundedCornerShape(16.dp),
         ) {
             if (busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-            else Text("تطبيق على شاشة القفل", style = MaterialTheme.typography.titleMedium)
+            else Text(if (style.mode == 0) "تطبيق على شاشة القفل" else "إظهار البطاقة على شاشة القفل",
+                style = MaterialTheme.typography.titleMedium)
         }
         Spacer(Modifier.height(12.dp))
     }

@@ -117,6 +117,12 @@ object Downloader {
         job?.cancel()
         _state.value = DlState.Fetching
         job = scope.launch {
+            // الطريقة السريعة: معلومات الفيديو من يوتيوب/تيك توك مباشرة (ثانية وحدة)
+            // بدل تشغيل محرك التحميل مرتين. المحرك يشتغل مرة وحدة وقت التحميل.
+            quickInfo(url)?.let {
+                _state.value = DlState.Ready(it)
+                return@launch
+            }
             if (!ready.await()) {
                 _state.value = DlState.Error("محرك التحميل ما اشتغل. سكّري التطبيق وافتحيه من جديد.", null)
                 return@launch
@@ -154,10 +160,16 @@ object Downloader {
         ContextCompat.startForegroundService(app, Intent(app, DownloadService::class.java))
 
         job = scope.launch {
+            if (!ready.isCompleted) _state.value = DlState.Downloading(info, choice, 0f, 0, "يجهّز محرك التحميل…")
+            if (!ready.await()) {
+                _state.value = DlState.Error("محرك التحميل ما اشتغل. سكّري التطبيق وافتحيه من جديد.", info)
+                return@launch
+            }
             val dir = File(app.getExternalFilesDir(null) ?: app.filesDir, "dl/$id").apply { mkdirs() }
             try {
                 val req = YoutubeDLRequest(info.url).common()
                 req.addOption("--no-mtime")
+                req.addOption("-N", "4")
                 req.addOption("-o", dir.absolutePath + "/%(title).80B.%(ext)s")
                 when (choice) {
                     is Choice.Video -> {
@@ -238,6 +250,41 @@ object Downloader {
         h >= 350 -> 360
         h >= 230 -> 240
         else -> 144
+    }
+
+    private val YT_ID = Regex("""(?:youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|live/|embed/)|youtu\.be/)([A-Za-z0-9_-]{11})""")
+
+    /** معلومات سريعة عن طريق oEmbed: العنوان والصورة والقناة بدون تشغيل yt-dlp */
+    private fun quickInfo(url: String): MediaInfo? {
+        val yt = YT_ID.find(url)?.groupValues?.get(1)
+        val tiktok = url.contains("tiktok.com", true)
+        val endpoint = when {
+            yt != null -> "https://www.youtube.com/oembed?format=json&url=" +
+                java.net.URLEncoder.encode("https://www.youtube.com/watch?v=$yt", "UTF-8")
+            tiktok -> "https://www.tiktok.com/oembed?url=" + java.net.URLEncoder.encode(url, "UTF-8")
+            else -> return null
+        }
+        return try {
+            val con = (java.net.URL(endpoint).openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 6000; readTimeout = 6000
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36")
+            }
+            if (con.responseCode != 200) return null
+            val j = org.json.JSONObject(con.inputStream.bufferedReader().use { it.readText() })
+            MediaInfo(
+                // للتحميل نستخدم الرابط الأصلي (يشمل الشورتس وروابط تيك توك المختصرة)
+                url = if (yt != null) "https://www.youtube.com/watch?v=$yt" else url,
+                title = j.optString("title").ifBlank { "بدون عنوان" },
+                thumb = if (yt != null) "https://i.ytimg.com/vi/$yt/hqdefault.jpg"
+                else j.optString("thumbnail_url").ifBlank { null },
+                uploader = j.optString("author_name").ifBlank { null },
+                duration = 0,
+                // يوتيوب: نعرض الجودات المعتادة، والمحرك ينزل لأقرب جودة متوفرة
+                heights = if (yt != null) listOf(1080, 720, 480, 360) else emptyList(),
+            )
+        } catch (e: Throwable) {
+            null
+        }
     }
 
     fun extractUrl(text: String): String? =
