@@ -55,6 +55,22 @@ object Downloader {
     val engine: StateFlow<String> = _engine
 
     private var job: Job? = null
+    private var jsRuntime: String? = null
+    private var ytdlpVersion: String = ""
+
+    private fun refreshVersion(app: Context) {
+        ytdlpVersion = runCatching { YoutubeDL.getInstance().version(app) }.getOrNull() ?: ""
+        _engine.value = "الإصدار " + ytdlpVersion.ifBlank { "؟" }
+    }
+
+    /** يوتيوب صار يحتاج محرك جافاسكربت لفك الحماية؛ ندمج QuickJS داخل التطبيق */
+    private fun YoutubeDLRequest.common(): YoutubeDLRequest {
+        addOption("--no-playlist")
+        val js = jsRuntime
+        // الخيار موجود في yt-dlp من نوفمبر 2025 وطالع
+        if (js != null && ytdlpVersion.take(7) >= "2025.11") addOption("--js-runtimes", "quickjs:$js")
+        return this
+    }
     private var processId: String? = null
 
     fun init(c: Context) {
@@ -63,17 +79,24 @@ object Downloader {
             try {
                 YoutubeDL.getInstance().init(app)
                 FFmpeg.getInstance().init(app)
-                ready.complete(true)
-                _engine.value = "الإصدار " + (YoutubeDL.getInstance().version(app) ?: "؟")
-                // تحديث تلقائي للمحرك كل 3 أيام
+                jsRuntime = File(app.applicationInfo.nativeLibraryDir, "libqjs.so").takeIf { it.exists() }?.absolutePath
                 val p = app.getSharedPreferences("dl", Context.MODE_PRIVATE)
                 val last = p.getLong("lastUpdate", 0L)
-                if (System.currentTimeMillis() - last > 3L * 24 * 3600 * 1000) {
+                val doUpdate = {
                     runCatching { YoutubeDL.getInstance().updateYoutubeDL(app, YoutubeDL.UpdateChannel.STABLE) }
-                        .onSuccess {
-                            p.edit().putLong("lastUpdate", System.currentTimeMillis()).apply()
-                            _engine.value = "الإصدار " + (YoutubeDL.getInstance().version(app) ?: "؟")
-                        }
+                        .onSuccess { p.edit().putLong("lastUpdate", System.currentTimeMillis()).apply() }
+                }
+                if (last == 0L) {
+                    // أول تشغيل: نحدّث المحرك قبل أول تحميل لأن النسخة المدمجة قديمة
+                    _engine.value = "يحدّث محرك التحميل لأول مرة…"
+                    doUpdate()
+                }
+                refreshVersion(app)
+                ready.complete(true)
+                // بعدها تحديث تلقائي كل 3 أيام
+                if (last != 0L && System.currentTimeMillis() - last > 3L * 24 * 3600 * 1000) {
+                    doUpdate()
+                    refreshVersion(app)
                 }
             } catch (e: Throwable) {
                 ready.complete(false)
@@ -99,7 +122,7 @@ object Downloader {
                 return@launch
             }
             try {
-                val req = YoutubeDLRequest(url).apply { addOption("--no-playlist") }
+                val req = YoutubeDLRequest(url).common()
                 val v = YoutubeDL.getInstance().getInfo(req)
                 val heights = (v.formats ?: arrayListOf())
                     .filter { (it.vcodec ?: "none") != "none" && it.height > 0 }
@@ -133,8 +156,7 @@ object Downloader {
         job = scope.launch {
             val dir = File(app.getExternalFilesDir(null) ?: app.filesDir, "dl/$id").apply { mkdirs() }
             try {
-                val req = YoutubeDLRequest(info.url)
-                req.addOption("--no-playlist")
+                val req = YoutubeDLRequest(info.url).common()
                 req.addOption("--no-mtime")
                 req.addOption("-o", dir.absolutePath + "/%(title).80B.%(ext)s")
                 when (choice) {
@@ -195,7 +217,8 @@ object Downloader {
                 val st = YoutubeDL.getInstance().updateYoutubeDL(app, YoutubeDL.UpdateChannel.STABLE)
                 app.getSharedPreferences("dl", Context.MODE_PRIVATE).edit()
                     .putLong("lastUpdate", System.currentTimeMillis()).apply()
-                val v = YoutubeDL.getInstance().version(app) ?: "؟"
+                refreshVersion(app)
+                val v = ytdlpVersion.ifBlank { "؟" }
                 _engine.value = if (st == YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE)
                     "محدّث (الإصدار $v)" else "تم التحديث (الإصدار $v)"
             } catch (e: Throwable) {
